@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><body style="background:#2b4a2f;margin:8px;font:10px monospace;color:#fff">
+<div id="o"></div>
+<script type="module">
+import { buildSprites } from '/src/sprites.js';
+const reg = buildSprites(); const o = document.getElementById('o');
+const q = new URLSearchParams(location.search); const z = +(q.get('z') || 3); const only = q.get('only');
+for (const [k, p] of Object.entries(reg)) {
+  if (only && !new RegExp(only).test(k)) continue;
+  const d = document.createElement('div'); d.style.cssText = 'display:inline-block;margin:3px;vertical-align:top;text-align:center';
+  const c = document.createElement('canvas'); c.width = p.w; c.height = p.h; c.getContext('2d').drawImage(p.c, 0, 0);
+  c.style.cssText = `image-rendering:pixelated;width:${p.w * z}px;height:${p.h * z}px;background:#4c8b45`;
+  d.append(c, document.createElement('br'), k); o.append(d);
+}
+</script>

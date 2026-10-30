@@ -1,0 +1,12 @@
+import puppeteer from 'puppeteer-core';
+const [url, js, out = '/tmp/dbg.png', wait = '3000'] = process.argv.slice(2);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--enable-unsafe-swiftshader'], headless: true });
+const p = await b.newPage(); await p.setViewport({ width: 1000, height: 600 });
+const errs = []; p.on('pageerror', (e) => errs.push('PAGEERR ' + e.message)); p.on('console', (m) => { if (['error', 'warning'].includes(m.type())) errs.push(m.type() + ' ' + m.text()); });
+await p.goto(url); await sleep(3500);
+if (js) console.log(JSON.stringify(await p.evaluate(js)));
+await sleep(+wait);
+await p.screenshot({ path: out });
+console.log(errs.slice(0, 10).join('\n') || 'no errors');
+await b.close();

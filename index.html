@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="google" content="notranslate" />
+  <meta http-equiv="Content-Language" content="en" />
+  <meta name="theme-color" content="#1b2a1b" />
+  <title>Hamster Rush — Squeekchain</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='4' width='10' height='9' fill='%23e9a655'/%3E%3Crect x='3' y='1' width='3' height='3' fill='%23e9a655'/%3E%3Crect x='10' y='1' width='3' height='3' fill='%23e9a655'/%3E%3Crect x='5' y='7' width='1' height='2'/%3E%3Crect x='10' y='7' width='1' height='2'/%3E%3C/svg%3E" />
+</head>
+<body translate="no">
+  <div id="game"></div>
+  <div id="ui">
+    <div id="hud" class="hidden">
+      <div class="hud-tl">
+        <div id="portrait"><canvas id="pt-cv" width="48" height="48"></canvas><div id="lvbadge"><b id="lv">1</b></div></div>
+        <div class="hpwrap">
+          <div class="hpbar"><div id="hp-trail"></div><div id="hp-fill"></div><div class="segs"></div><div class="gloss"></div><span id="hp-txt"></span></div>
+          <div id="xpbar"><div id="xp-fill"></div><div class="shine"></div><span id="xp-txt"></span></div>
+          <div id="dashrow"><div id="dashbar"><i id="dash-fill"></i></div><span>DASH</span></div>
+        </div>
+      </div>
+      <div class="hud-tm">
+        <div id="timer">5:30</div>
+        <div id="nextboss"></div>
+        <div id="boss" class="hidden"><div class="bn"><span id="boss-name">BOSS</span><em id="boss-ph"></em></div><div class="bb"><div id="boss-trail"></div><div id="boss-fill"></div></div></div>
+      </div>
+      <div class="hud-tr">
+        <div class="trow"><div class="stat"><span class="ico">☠</span><b id="kills">0</b></div><div class="stat sc"><span class="ico">★</span><b id="score">0</b></div><button id="btn-pause" title="Pause (Esc / P)">❚❚</button></div>
+        <canvas id="minimap" width="84" height="84"></canvas>
+        <div class="chain-chip" id="chip"></div>
+      </div>
+      <div id="combo" class="hidden"><b id="combo-n">x2</b><span>COMBO</span><div class="cbar"><i id="combo-f"></i></div></div>
+      <div class="hud-bl"><div id="wslots"></div><div id="pslots"></div></div>
+      <button id="btn-dash" class="touch-dash hidden" aria-label="Dash">DASH</button>
+      <div id="toasts"></div>
+      <div id="lowhp"></div>
+      <div id="hurt" class="hurt"></div>
+    </div>
+
+    <div id="menu" class="screen">
+      <div class="menu-wrap">
+        <header>
+          <canvas id="logo-ham" width="48" height="48"></canvas>
+          <div><h1>HAMSTER RUSH</h1><p class="sub">Squeekchain · Sepolia testnet · 32-bit pixel auto-shooter</p></div>
+        </header>
+        <div class="grid">
+          <section class="card" id="card-wheel"><h2>⛓ Wheel status <button id="btn-refresh" class="mini">refresh</button></h2><div id="wheel-body">Reading chain…</div></section>
+          <section class="card" id="card-wallet"><h2>👛 Wallet</h2><div id="wallet-body"></div></section>
+          <section class="card" id="card-prog"><h2>🏆 Progress</h2><div id="prog-body"></div></section>
+          <section class="card" id="card-shop"><h2>🌻 Seed shop</h2><div id="shop-body"></div></section>
+        </div>
+        <div class="play-row">
+          <button id="btn-play" class="big">▶ PLAY (Enter)</button>
+          <button id="btn-dashboard" class="mini">📊 Dashboard</button>
+          <button id="btn-sound" class="mini">sound: on</button>
+          <div class="mus"><button class="mini mus-btn" title="Mute / unmute music (M)">♪ music: on</button><input class="mus-vol" type="range" min="0" max="100" step="1" value="60" aria-label="Music volume" /></div>
+        </div>
+        <p class="hint">WASD / arrow keys to move · auto-fire · on touch, press and drag on the screen · fully playable without a wallet</p>
+      </div>
+    </div>
+
+    <div id="levelup" class="screen hidden">
+      <div class="lu-wrap"><div class="lu-burst"></div><h2 class="lu-title">LEVEL UP!  <span id="lu-level"></span></h2><p id="lu-sub">Pick an upgrade</p><div id="lu-cards"></div><div class="lu-foot"><button id="lu-reroll" class="mini">↻ reroll (<span id="lu-rr">0</span>) [R]</button></div></div>
+    </div>
+
+    <div id="pause" class="screen hidden"><div class="lu-wrap"><h2>PAUSED</h2><div class="mus pz-mus"><button class="mini mus-btn" title="Mute / unmute music (M)">♪ music: on</button><input class="mus-vol" type="range" min="0" max="100" step="1" value="60" aria-label="Music volume" /></div><div class="btnrow"><button id="pz-resume" class="big">Resume</button><button id="pz-menu" class="mini">Back to menu</button></div></div></div>
+
+    <div id="result" class="screen hidden"><div class="res-wrap">
+      <h2 id="res-title"></h2>
+      <div id="res-stats"></div>
+      <div id="chest-area"><canvas id="chest-cv" width="48" height="48"></canvas><div id="chest-card"></div></div>
+      <div class="btnrow"><button id="btn-open" class="big">🎁 Open chest</button><button id="btn-again" class="big hidden">▶ Play again</button><button id="btn-board" class="mini">📊 Leaderboard</button><button id="btn-tomenu" class="mini hidden">Menu</button></div>
+    </div></div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

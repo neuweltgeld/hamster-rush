@@ -1,0 +1,15 @@
+import puppeteer from 'puppeteer-core';
+const base = process.argv[2] || 'http://127.0.0.1:5201/';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--enable-unsafe-swiftshader'], headless: true });
+const p = await b.newPage(); await p.setViewport({ width: 1100, height: 650 });
+const errs = []; p.on('pageerror', (e) => errs.push('PAGEERR ' + e.message)); p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text().slice(0, 200)); });
+await p.goto(base + '?bot=1&god=1&autoplay=1&nodegrade=1'); await sleep(4500);
+await p.evaluate(() => { const g = window.__hr; window.__botOff && window.__botOff(); const gx = g.gainXp.bind(g); g.gainXp = () => {}; window.__gx = gx; for (const id of ['blades','wave','lightning','bees']) g.addWeapon(id, 4); g.t = 60; g.hp = g.P.maxHp * 0.25; });
+await sleep(6000); await p.screenshot({ path: '/tmp/hud1.png' });
+await p.evaluate(() => { const g = window.__hr; g.hp = g.P.maxHp; g.t = 94; });
+await sleep(9000); await p.screenshot({ path: '/tmp/hud2.png' });
+await p.evaluate(() => { window.__gx(99999, true); });
+await sleep(1500); await p.screenshot({ path: '/tmp/hud3.png' });
+console.log(errs.join('\n') || 'no errors');
+await b.close();

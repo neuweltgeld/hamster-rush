@@ -1,0 +1,158 @@
+<!doctype html><meta charset="utf-8"><title>HAMSTER RUSH wallpapers</title>
+<body style="margin:0;background:#111">
+<script type="module">
+// Promo wallpaper renderer. Everything is drawn from the game's own generated sprite art and world
+// (nothing external): ground chunks + props come from world.js, characters from sprites.js,
+// the logo uses an original 5x7 bitmap font. Backgrounds render at 1 texel = 3 px, heroes at 7-9 px.
+import { buildSprites } from '/src/sprites.js';
+import { getWorld } from '/src/world.js';
+import { PROPS, rng } from '/src/worldart.js';
+const reg = buildSprites(), world = getWorld();
+const S = (k) => reg[k].c;
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return [c, x]; };
+
+// ---------------------------------------------------------------- helpers
+function bg(W, H, cx, cy, k = 3) {
+  const lw = Math.ceil(W / k), lh = Math.ceil(H / k), [c, x] = mk(lw, lh);
+  const ox = Math.round(cx * 2 - lw / 2), oy = Math.round(cy * 2 - lh / 2);
+  for (let j = Math.floor(oy / 256); j <= Math.floor((oy + lh) / 256); j++) for (let i = Math.floor(ox / 256); i <= Math.floor((ox + lw) / 256); i++) {
+    if (i < 0 || j < 0 || i > 15 || j > 11) continue; x.drawImage(world.chunkCanvas(i, j), i * 256 - ox, j * 256 - oy);
+  }
+  const ps = world.props.filter((p) => { const d = PROPS[p.k]; const fx = p.x * 2 - ox, fy = p.y * 2 - oy; return fx > -d.w && fx < lw + d.w && fy > -10 && fy < lh + d.h; }).sort((a, b) => a.y - b.y);
+  for (const p of ps) { const d = PROPS[p.k]; x.drawImage(S(p.k), Math.round(p.x * 2 - ox - d.fx), Math.round(p.y * 2 - oy - d.fy)); }
+  const [F, fx] = mk(W, H); fx.drawImage(c, 0, 0, lw * k, lh * k); return [F, fx];
+}
+function glow(x, px, py, r, col, a = 0.6, mode = 'lighter') {
+  const g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, col.replace('A', a)); g.addColorStop(0.45, col.replace('A', a * 0.35)); g.addColorStop(1, col.replace('A', 0));
+  x.save(); x.globalCompositeOperation = mode; x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2); x.restore();
+}
+function shade(x, W, H, top, bot, mode = 'source-over') { const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, top); g.addColorStop(1, bot); x.save(); x.globalCompositeOperation = mode; x.fillStyle = g; x.fillRect(0, 0, W, H); x.restore(); }
+function vignette(x, W, H, a = 0.6) { const g = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.hypot(W, H) * 0.55); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(8,4,20,${a})`); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+function shadowEl(x, px, py, rw, rh, a = 0.4) { x.save(); x.fillStyle = `rgba(0,0,0,${a})`; x.beginPath(); x.ellipse(px, py, rw, rh, 0, 0, 7); x.fill(); x.restore(); }
+/** draw a registry sprite centred on px, standing on foot-line py, integer scale s */
+function spr(x, key, px, py, s, { flip = false, alpha = 1, rot = 0, shadow = true, cy = null } = {}) {
+  const c = S(key), w = c.width * s, h = c.height * s;
+  if (shadow) shadowEl(x, px, py, w * 0.28, h * 0.055, 0.38);
+  x.save(); x.globalAlpha = alpha; x.translate(px, cy != null ? cy : py - h + h * 0.07); x.rotate(rot); if (flip) x.scale(-1, 1);
+  x.drawImage(c, -w / 2, cy != null ? -h / 2 : 0, w, h); x.restore();
+}
+function sparkles(x, W, H, n, seed, cols = ['#ffffff', '#ffe9a0', '#bfe8ff'], sz = [3, 9]) {
+  const r = rng(seed); for (let i = 0; i < n; i++) { const px = r() * W, py = r() * H, s = Math.round(sz[0] + r() * (sz[1] - sz[0])); x.fillStyle = cols[(r() * cols.length) | 0]; x.globalAlpha = 0.5 + r() * 0.5;
+    x.fillRect(px - s / 2, py - s / 2, s, s); if (r() < 0.25) { x.fillRect(px - s * 1.5, py - s / 6, s * 3, s / 3); x.fillRect(px - s / 6, py - s * 1.5, s / 3, s * 3); } } x.globalAlpha = 1;
+}
+function stars(x, W, H, n, seed) { const r = rng(seed); x.fillStyle = '#fff'; for (let i = 0; i < n; i++) { x.globalAlpha = 0.25 + r() * 0.75; const s = r() < 0.15 ? 6 : 3; x.fillRect(Math.round(r() * W / 3) * 3, Math.round(r() * H / 3) * 3, s, s); } x.globalAlpha = 1; }
+// ---------------------------------------------------------------- original 5x7 bitmap logo
+const G = { H: ['10001', '10001', '10001', '11111', '10001', '10001', '10001'], A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'], M: ['1000001', '1100011', '1010101', '1001001', '1000001', '1000001', '1000001'], S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'], T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'], E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'], R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'], U: ['10001', '10001', '10001', '10001', '10001', '10001', '01110'] };
+function logoLine(text, pal) {
+  const cw = 3, n = text.length, gw = [...text].map((ch) => G[ch][0].length), offs = gw.map((_, i) => gw.slice(0, i).reduce((a, b) => a + b + 2, 0)), W = (offs[n - 1] + gw[n - 1]) * cw, H = 7 * cw, PAD = 7, TW = W + PAD * 2 + 4, TH = H + PAD * 2 + 4;
+  const m = new Uint8Array(TW * TH); const at = (x, y) => (x < 0 || y < 0 || x >= TW || y >= TH ? 0 : m[y * TW + x]);
+  [...text].forEach((ch, i) => G[ch].forEach((row, ry) => [...row].forEach((v, rx) => { if (v === '1') for (let a = 0; a < cw; a++) for (let b = 0; b < cw; b++) m[(PAD + ry * cw + b) * TW + PAD + (offs[i] + rx) * cw + a] = 1; })));
+  const [c, x] = mk(TW, TH), id = x.createImageData(TW, TH), d = id.data;
+  const put = (px, py, col) => { const i = (py * TW + px) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255; };
+  const ex = new Uint8Array(TW * TH); const EXT = 3; for (let e = 1; e <= EXT; e++) for (let y = 0; y < TH; y++) for (let xx = 0; xx < TW; xx++) if (at(xx - e, y - e)) ex[y * TW + xx] = e;
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  for (let y = 0; y < TH; y++) for (let xx = 0; xx < TW; xx++) {
+    if (at(xx, y)) { const t = (y - PAD) / H; let col = t < 0.3 ? hex(pal[0]) : t < 0.62 ? hex(pal[1]) : hex(pal[2]);
+      if (!at(xx, y - 1)) col = hex(pal[3]); else if (!at(xx - 1, y) && !at(xx, y + 1) === false) col = col; if (!at(xx, y + 1)) col = hex(pal[4]);
+      put(xx, y, col); }
+    else if (ex[y * TW + xx]) put(xx, y, hex(pal[5]));
+  }
+  const o = new Uint8Array(TW * TH); const solid = (x2, y2) => (x2 < 0 || y2 < 0 || x2 >= TW || y2 >= TH ? false : d[(y2 * TW + x2) * 4 + 3] > 0);
+  for (let y = 0; y < TH; y++) for (let xx = 0; xx < TW; xx++) if (!solid(xx, y)) { for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (solid(xx + a, y + b)) o[y * TW + xx] = 1; }
+  for (let y = 0; y < TH; y++) for (let xx = 0; xx < TW; xx++) if (o[y * TW + xx]) put(xx, y, [22, 12, 36]);
+  x.putImageData(id, 0, 0); return c;
+}
+const GOLD = ['#fff7b0', '#ffc233', '#f08a1c', '#fffbe0', '#b8480f', '#7a2a12'], HOT = ['#ffd2b0', '#ff7a4a', '#d9304a', '#ffe8d8', '#8a1430', '#5a1030'];
+function logo(x, W, H, cx, top, k) {
+  const a = logoLine('HAMSTER', GOLD), b = logoLine('RUSH', HOT);
+  const wa = a.width * k, wb = b.width * k;
+  x.imageSmoothingEnabled = false; x.drawImage(a, Math.round(cx - wa / 2), top, wa, a.height * k);
+  const kb = k, yb = top + (a.height - 16) * k; x.drawImage(b, Math.round(cx - wb * kb / k / 2), yb, b.width * kb, b.height * kb);
+  return yb + b.height * kb;
+}
+function pixText(str, px, col, k, outline = '#160c24') {
+  const [c0, x0] = mk(Math.ceil(str.length * px * 0.62) + 8, px + 8); x0.font = `bold ${px}px monospace`; x0.textBaseline = 'top'; x0.fillStyle = '#000'; x0.fillText(str, 3, 3);
+  const id = x0.getImageData(0, 0, c0.width, c0.height), d = id.data, w = c0.width, h = c0.height; const on = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) on[i] = d[i * 4 + 3] > 110 ? 1 : 0;
+  const [c, x] = mk(w, h), o = x.createImageData(w, h);
+  for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) { const i = y * w + xx; let col2 = null; if (on[i]) col2 = col; else { for (let a = -1; a <= 1 && !col2; a++) for (let b = -1; b <= 1; b++) { const X = xx + a, Y = y + b; if (X >= 0 && Y >= 0 && X < w && Y < h && on[Y * w + X]) { col2 = outline; break; } } }
+    if (col2) { const hx = [1, 3, 5].map((q) => parseInt(col2.slice(q, q + 2), 16)); o.data.set([...hx, 255], i * 4); } }
+  x.putImageData(o, 0, 0); const [f, fx] = mk(w * k, h * k); fx.drawImage(c, 0, 0, w * k, h * k); return f;
+}
+function centerText(x, str, px, col, k, cx, y) { const t = pixText(str, px, col, k); x.drawImage(t, Math.round(cx - t.width / 2), y); return y + t.height; }
+// ---------------------------------------------------------------- chain blocks (Squeekchain motif)
+function block(x, px, py, s, hash, glowc = '#4af0ff') {
+  glow(x, px + 11 * s, py + 11 * s, 22 * s, glowc.replace('#', 'rgba(').length ? 'rgba(74,240,255,A)' : '', 0.35);
+  const w = 22, face = '#1b2f4a', edge = '#4af0ff', top = '#2f5a86', side = '#0f1c30';
+  x.fillStyle = '#0a0a1c'; x.fillRect(px - s, py - s, (w + 5) * s, (w + 5) * s);
+  x.fillStyle = top; x.fillRect(px, py, w * s, 4 * s); x.fillStyle = side; x.fillRect(px + w * s, py + 2 * s, 3 * s, w * s);
+  x.fillStyle = face; x.fillRect(px, py + 4 * s, w * s, (w - 4) * s);
+  x.fillStyle = edge; x.fillRect(px, py + 4 * s, w * s, s); x.fillRect(px, py + 4 * s, s, (w - 4) * s); x.fillStyle = '#2aa6c8'; x.fillRect(px, py + (w - 1) * s, w * s, s); x.fillRect(px + (w - 1) * s, py + 4 * s, s, (w - 4) * s);
+  x.fillStyle = '#7dffb0'; x.fillRect(px + 2 * s, py + 7 * s, 2 * s, 2 * s);
+  const t = pixText(hash, 7, '#9fe8ff', Math.max(1, Math.round(s / 2)), '#0a1424'); x.drawImage(t, px + 2 * s, py + 10 * s);
+}
+// ---------------------------------------------------------------- scenes
+const T = (L, p) => (L ? p[0] : p[1]);
+const scenes = {
+  hero(W, H) { const L = W > H, [c, x] = bg(W, H, 990, 700); const k = L ? 7 : 8;
+    shade(x, W, H, 'rgba(255,214,140,.18)', 'rgba(20,40,20,.25)'); glow(x, W / 2, H * 0.62, H * 0.55, 'rgba(255,200,90,A)', 0.5);
+    spr(x, 'beetle_w1', W * T(L, [0.2, 0.2]), H * T(L, [0.88, 0.62]), 4); spr(x, 'ant_w3', W * T(L, [0.12, 0.34]), H * T(L, [0.96, 0.7]), 4);
+    spr(x, 'snake_w2', W * T(L, [0.84, 0.8]), H * T(L, [0.9, 0.7]), 4, { flip: true }); spr(x, 'cat_w2', W * T(L, [0.76, 0.78]), H * T(L, [0.7, 0.55]), 5, { flip: true });
+    spr(x, 'bat_w2', W * T(L, [0.3, 0.2]), H * T(L, [0.5, 0.4]), 4, { cy: H * T(L, [0.45, 0.38]) });
+    for (let i = 0; i < 4; i++) spr(x, 'seed', W * (0.62 + i * 0.045), H * (T(L, [0.7, 0.66]) - i * 0.02), 4, { shadow: false, cy: H * (T(L, [0.7, 0.66]) - i * 0.02) });
+    spr(x, 'ham_w2', W / 2, H * T(L, [0.93, 0.89]), k); sparkles(x, W, H, 40, 11);
+    vignette(x, W, H, 0.55);
+    const yb = logo(x, W, H, W / 2, Math.round(H * T(L, [0.04, 0.06])), T(L, [7, 6]));
+    centerText(x, 'A LOOTER SHOOTER ON SQUEEKCHAIN', 9, '#ffe9a8', T(L, [6, 4]), W / 2, Math.round(yb + H * 0.012)); return c; },
+  boss(W, H) { const L = W > H, [c, x] = bg(W, H, 410, 1240); const k = L ? 7 : 8;
+    x.save(); x.globalCompositeOperation = 'multiply'; x.fillStyle = 'rgb(86,70,150)'; x.fillRect(0, 0, W, H); x.restore(); stars(x, W, H * 0.3, 40, 5);
+    glow(x, W / 2, H * T(L, [0.52, 0.5]), H * 0.6, 'rgba(255,60,80,A)', 0.55); glow(x, W / 2, H * T(L, [0.5, 0.45]), H * 0.3, 'rgba(255,200,120,A)', 0.35);
+    spr(x, 'boss2_w2', W / 2, H * T(L, [1.0, 0.8]), T(L, [7, 8]));
+    spr(x, 'bat_w2', W * T(L, [0.14, 0.12]), H * 0.5, 4, { cy: H * T(L, [0.35, 0.3]) }); spr(x, 'bat_w5', W * T(L, [0.86, 0.88]), H * 0.5, 4, { cy: H * T(L, [0.4, 0.34]), flip: true });
+    spr(x, 'beetle_w2', W * T(L, [0.12, 0.2]), H * T(L, [0.94, 0.88]), 4); spr(x, 'ant_w1', W * T(L, [0.9, 0.82]), H * T(L, [0.96, 0.9]), 4, { flip: true });
+    const hx = W * T(L, [0.3, 0.35]), hy = H * T(L, [0.96, 0.95]);
+    spr(x, 'ham_w3', hx, hy, T(L, [6, 6]));
+    for (let i = 0; i < 3; i++) spr(x, 'seed', hx + W * (0.1 + i * 0.05), hy - H * T(L, [0.17, 0.12]) - i * 6, 4, { shadow: false, cy: hy - H * T(L, [0.17, 0.12]) });
+    spr(x, 'blade', hx + 150, hy - 170, 5, { shadow: false, cy: hy - 170, rot: 0.6 });
+    sparkles(x, W, H, 25, 21, ['#ff9aa8', '#ffd0a0', '#ffffff']); vignette(x, W, H, 0.7);
+    const yb = logo(x, W, H, W / 2, Math.round(H * T(L, [0.04, 0.05])), T(L, [7, 6]));
+    centerText(x, 'BEWARE THE CAT KING', 9, '#ff9aa8', T(L, [6, 4]), W / 2, Math.round(yb + H * 0.012)); return c; },
+  chain(W, H) { const L = W > H, [c, x] = bg(W, H, 410, 440); const k = L ? 7 : 8;
+    x.save(); x.globalCompositeOperation = 'multiply'; x.fillStyle = 'rgb(40,70,140)'; x.fillRect(0, 0, W, H); x.restore(); shade(x, W, H, 'rgba(10,0,40,.55)', 'rgba(0,20,40,.1)'); stars(x, W, H, 90, 7);
+    const hs = ['0x9f3a1c', '0x41be07', '0xd0c5e2', '0x7aa9f1', '0x03e8b4', '0xbb27d5']; const n = L ? 5 : 4, s = L ? 6 : 6, r = rng(4);
+    for (let i = 0; i < n; i++) { const t = i / (n - 1); const px = L ? W * (0.06 + t * 0.78) : W * (0.12 + (i % 2) * 0.46), py = L ? H * (0.6 + Math.sin(t * 3.1) * 0.05 - (i % 2) * 0.05) : H * (0.34 + t * 0.4);
+      if (i < n - 1) { const t2 = (i + 1) / (n - 1), nx = L ? W * (0.06 + t2 * 0.78) : W * (0.12 + ((i + 1) % 2) * 0.46), ny = L ? H * (0.6 + Math.sin(t2 * 3.1) * 0.05 - ((i + 1) % 2) * 0.05) : H * (0.34 + t2 * 0.4);
+        for (let q = 0.28; q < 0.78; q += 0.1) { const lx = px + 11 * s + (nx - px) * q, ly = py + 14 * s + (ny - py) * q; x.fillStyle = '#0a0a1c'; x.fillRect(lx - 3 * s, ly - 2 * s, 6 * s, 4 * s); x.fillStyle = '#4af0ff'; x.fillRect(lx - 2 * s, ly - s, 4 * s, 2 * s); x.fillStyle = '#0a1428'; x.fillRect(lx - s, ly - s / 2, 2 * s, s); } }
+      block(x, px, py, s, hs[i % hs.length]); }
+    glow(x, W / 2, H * 0.8, H * 0.5, 'rgba(74,240,255,A)', 0.4);
+    spr(x, 'ham_w5', W / 2, H * T(L, [0.95, 0.9]), k); spr(x, 'blade', W / 2 + 190, H * T(L, [0.95, 0.9]) - 230, 5, { shadow: false, cy: H * T(L, [0.95, 0.9]) - 230, rot: 1.2 });
+    for (const [gx, gy, gk] of [[0.2, 0.78, 'gem1'], [0.82, 0.74, 'gem2'], [0.7, 0.9, 'gem3'], [0.28, 0.92, 'gem1']]) spr(x, gk, W * (L ? gx : gx), H * gy, 5, { shadow: false, cy: H * gy });
+    sparkles(x, W, H, 45, 31, ['#4af0ff', '#ffffff', '#9affc8']); vignette(x, W, H, 0.6);
+    const yb = logo(x, W, H, W / 2, Math.round(H * T(L, [0.04, 0.05])), T(L, [7, 6]));
+    centerText(x, 'LOOT ON-CHAIN · SQUEEKCHAIN', 9, '#9fe8ff', T(L, [6, 4]), W / 2, Math.round(yb + H * 0.012)); return c; },
+  loot(W, H) { const L = W > H, [c, x] = bg(W, H, 1450, 1010); const k = L ? 7 : 8;
+    shade(x, W, H, 'rgba(255,150,60,.35)', 'rgba(120,40,20,.35)'); const cx = W / 2, cy = H * T(L, [0.58, 0.58]);
+    x.save(); x.translate(cx, cy); x.globalCompositeOperation = 'lighter'; for (let i = 0; i < 16; i++) { x.rotate(Math.PI / 8); x.fillStyle = 'rgba(255,225,130,.10)'; x.beginPath(); x.moveTo(0, 0); x.lineTo(W * 0.9, -H * 0.04); x.lineTo(W * 0.9, H * 0.04); x.fill(); } x.restore();
+    glow(x, cx, cy, H * 0.6, 'rgba(255,220,120,A)', 0.6);
+    spr(x, 'chest1', W * T(L, [0.2, 0.28]), H * T(L, [0.9, 0.76]), T(L, [7, 7])); spr(x, 'chest0', W * T(L, [0.8, 0.74]), H * T(L, [0.92, 0.8]), T(L, [6, 6]), { flip: true });
+    const items = [['gem1', 0.38, 0.72], ['gem2', 0.62, 0.7], ['gem3', 0.56, 0.58], ['heart', 0.32, 0.58], ['bchest', 0.72, 0.56], ['icon_weapon', 0.13, 0.56], ['icon_helm', 0.88, 0.6], ['icon_charm', 0.44, 0.56]];
+    const pos = L ? items : [['gem1', 0.2, 0.46], ['gem2', 0.8, 0.44], ['gem3', 0.5, 0.3], ['heart', 0.18, 0.3], ['bchest', 0.82, 0.3], ['icon_weapon', 0.14, 0.58], ['icon_helm', 0.86, 0.6], ['icon_charm', 0.5, 0.2]];
+    for (const [kk, fx, fy] of pos) { const sc = kk.startsWith('icon') ? 3 : 6; glow(x, W * fx, H * fy, 120, 'rgba(255,240,170,A)', 0.4); spr(x, kk, W * fx, H * fy, sc, { shadow: false, cy: H * fy }); }
+    spr(x, 'ham_w1', cx, H * T(L, [0.93, 0.87]), k); sparkles(x, W, H, 70, 41, ['#fff6c0', '#ffffff', '#ffd860'], [4, 11]); vignette(x, W, H, 0.5);
+    const yb = logo(x, W, H, W / 2, Math.round(H * T(L, [0.04, 0.05])), T(L, [7, 6]));
+    centerText(x, 'LOOT. SHOOT. REPEAT.', 9, '#fff0b0', T(L, [6, 4]), W / 2, Math.round(yb + H * 0.012)); return c; },
+  horde(W, H) { const L = W > H, [c, x] = bg(W, H, 1500, 330); const k = L ? 7 : 8;
+    x.save(); x.globalCompositeOperation = 'multiply'; x.fillStyle = 'rgb(255,170,120)'; x.fillRect(0, 0, W, H); x.restore(); shade(x, W, H, 'rgba(255,120,60,.3)', 'rgba(40,10,50,.4)');
+    const r = rng(9), kinds = ['beetle', 'ant', 'snake', 'bat', 'boar', 'cat', 'spitter'];
+    const hx = W * T(L, [0.3, 0.38]), hy = H * T(L, [0.9, 0.82]);
+    const list = []; for (let i = 0; i < (L ? 26 : 22); i++) { const t = r(); const px = L ? W * (0.5 + r() * 0.5) : W * (0.1 + r() * 0.8), py = L ? H * (0.45 + r() * 0.52) : H * (0.34 + r() * 0.62); list.push([kinds[(r() * 7) | 0], px, py, 3 + ((py / H) > 0.7 ? 1 : 0) + (t > 0.85 ? 1 : 0), (r() * 8) | 0]); }
+    list.sort((a, b) => a[2] - b[2]); for (const [kd, px, py, sc, f] of list) { if (!L && Math.abs(px - hx) < W * 0.2 && py > H * 0.6) continue; if (kd === 'bat') spr(x, 'bat_w' + f, px, py, sc, { flip: true, cy: py - 120 }); else spr(x, kd + '_w' + f, px, py, sc, { flip: px > hx }); }
+    glow(x, hx + 160, hy - 160, 260, 'rgba(255,230,140,A)', 0.55);
+    for (let i = 0; i < 6; i++) spr(x, 'seed', hx + 220 + i * W * 0.05, hy - 170 - (i % 2) * 14, 4, { shadow: false, cy: hy - 170 - (i % 2) * 14 });
+    spr(x, 'ham_w3', hx, hy, k); sparkles(x, W, H, 60, 51, ['#ffe9a0', '#ffffff', '#ff9a5a'], [4, 10]); vignette(x, W, H, 0.6);
+    const yb = logo(x, W, H, W / 2, Math.round(H * T(L, [0.04, 0.05])), T(L, [7, 6]));
+    centerText(x, 'SURVIVE THE HORDE', 9, '#ffd2a0', T(L, [6, 4]), W / 2, Math.round(yb + H * 0.012)); return c; },
+};
+window.SCENES = Object.keys(scenes);
+window.renderScene = (name, W, H) => scenes[name](W, H).toDataURL('image/png');
+window.ready = true;
+</script>
